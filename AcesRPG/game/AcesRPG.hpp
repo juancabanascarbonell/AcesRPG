@@ -11,22 +11,26 @@
 #include <exception>
 #include <algorithm> //find, count...
 #include <utility> //pair
+#include <random> //shuffle
 
 enum OPCIONES {NUEVA_PARTIDA, CARGAR_PARTIDA, SALIR};
 enum PALOS {PICA, CORAZON, DIAMANTE, TREBOL};
 enum CATEG {NULO, NA, DOS, TRES, CUATRO, CINCO, SEIS, SIETE, OCHO, NUEVE, DIEZ, JOTA, REINA, REY, AS};
 
+const std::string nombresPalos[] = { "Pica", "Corazón", "Diamante", "Trébol" };
+const std::string nombresFiguras[] = {"Jota", "Reina", "Rey" , "As"};
+
 class Usuario
 {
 public:
     Usuario(std::string nombre);
-    Usuario(std::string filename);
+    Usuario();
 
-    const std::string nombre() const noexcept {return nomUsuario;}
-    const int ronda_maxima() const noexcept {return maxRonda;}
-    const int partidas_jugadas() const noexcept {return partidasJugadas;}
-    const int partidas_ganadas() const noexcept {return partidasGanadas;}
-    const int rondas_jugadas() const noexcept {return rondasJugadas;}
+    const std::string nombre() const noexcept;
+    const int ronda_maxima() const noexcept;
+    const int partidas_jugadas() const noexcept;
+    const int partidas_ganadas() const noexcept;
+    const int rondas_jugadas() const noexcept;
 
     void addRonda(int) noexcept;
 
@@ -36,17 +40,21 @@ private:
     int maxRonda, partidasJugadas, partidasGanadas, rondasJugadas;
 };
 
+
+
 class Carta
 {
 public:
     Carta(int cat, int palo);
     const int paloCarta() const noexcept;
     const int categCarta() const noexcept;
+    const std::string verCarta() const noexcept;
     
-
 private:
-    std::pair<int, int> carta; //first: categoria second: palo
+    std::pair<int, int> carta; //first: categoria. second: palo
 };
+
+
 
 class Partida
 {
@@ -58,12 +66,18 @@ public:
     const std::vector<Carta> cartasSala() const noexcept;
     const Carta topMonton() const noexcept;
     const Carta armaActual() const noexcept;
+    const int saludActual() const noexcept;
     const void verSala() noexcept;
+    const bool salaVacia() const noexcept;
+    const void verStats() noexcept;
+    const std::string ultimoMsg() const noexcept;
 
 
     void nuevaSala();
     void descartarMonton();
-    void usarCarta(auto);
+    void usarCarta(auto it);
+    void huir();
+    void addMensaje(std::string);
 
     class usoInvalido : public std::exception {
         private:
@@ -79,12 +93,13 @@ public:
             }
         };
 
-
 private:
     Usuario user;
-    int salud, ronda, cartasRestantes;
+    int salud, ronda, cartasRestantes, huidasRestantes;
     bool saludUsada;
     Carta arma;
+
+    std::string lastMessage;
 
     std::vector<Carta> sala; //Cartas presentes en la mesa durante la ronda
     std::queue<Carta> baraja;
@@ -94,7 +109,7 @@ private:
     void addMonstruo(Carta monstruo);
     void addSalud(Carta salud) noexcept;
 
-
+    void inicializarBaraja() noexcept;
 };
 
 

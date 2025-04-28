@@ -94,13 +94,41 @@ inline void jump(int n){for(int i=0; i<n; i++) std::cout << std::endl;}
 
 int iniciarPartida(Partida game)
 {
-    //baraja
+    bool flagValidCard = false;
+
+    //game ya está inicializada
+    if(game.rondaActual() == 0){
+        system("cls");
+        std::cout << "Una nueva aventura comienza...\n\nPreparate." << std::endl;
+        Sleep(3000);
+    }else{
+        system("cls");
+        std::cout << "La aventura continua...";
+        Sleep(3000);
+    }
 
     while(game.cartasRest() != 0)
     {
-        game.
+        system("cls");
+        std::cout << "Ronda " << game.rondaActual() << "\n\n";
+        
+        flagValidCard = false;
+        while(!flagValidCard){
+            try{
+
+            }catch(const Partida::usoInvalido& e){
+                
+            }
+
+
+        }
+
+
     }
 }
+
+
+    //PARTIDA
 
 Partida::Partida(Usuario user, std::string filename = "game1.txt") : user{user}
 {
@@ -112,11 +140,17 @@ inline const int Partida::cartasRest() const noexcept{return cartasRestantes;}
 inline const std::vector<Carta> Partida::cartasSala() const noexcept{return sala;}
 inline const Carta Partida::topMonton() const noexcept{return monton.top();}
 inline const Carta Partida::armaActual() const noexcept{return arma;}
+inline const int Partida::saludActual() const noexcept{return salud;}
 const void Partida::verSala() noexcept{
     for(auto it = sala.begin(); it != sala.end(); it++){
-        std::cout << *it;
+        std::cout << *it << " ";
     }
 }
+inline const bool Partida::salaVacia() const noexcept{return sala.empty();}
+inline const void Partida::verStats() noexcept{
+    std::cout << "Salud: " << salud << "\nArma: " << arma;
+}
+inline const std::string Partida::ultimoMsg() const noexcept{return lastMessage;}
 
 void Partida::nuevaSala()
 {
@@ -176,13 +210,88 @@ void Partida::usarCarta(auto it){
 inline void Partida::nuevaArma(Carta arma) noexcept{
     descartarMonton();
     Partida::arma = arma;
+
+    lastMessage = "Se ha añadido una nueva arma: " +
 }
+
 inline void Partida::addMonstruo(Carta monstruo){
-    monton.push(monstruo);
+    
+    //El siguiente monstruo a combatir ha de ser menor que el tope del montón
+    if(monton.top().categCarta() > monstruo.categCarta()){
+        monton.push(monstruo);
+    }else{ //Si el monstruo es menor o igual, se descarta y se recibe todo el daño
+        salud -= monstruo.categCarta();
+    }
 }
 
+inline void Partida::addSalud(Carta salud) noexcept{
+    Partida::salud += salud.categCarta();
+    if(Partida::salud > 20) Partida::salud = 20;
+}
 
-Usuario::Usuario(std::string nombre) : nomUsuario{nombre}, maxRonda{0}, partidasJugadas{0}, rondasJugadas{0} {}
+void Partida::inicializarBaraja() noexcept{
+    
+    while(!baraja.empty()) baraja.pop();
+    
+    std::vector<Carta> vectCartas;
+    bool flagCartas = false;
+    for (int palo = 0; palo < 4; ++palo) {  // Recorrer los palos
+        for (int categoria = 2; categoria <= 13; ++categoria) {  // Recorrer las categorías de 2 a K (13)
+            // Excluir ases y figuras (J, Q, K) de Corazón y Diamante
+            if ((palo == CORAZON || palo == DIAMANTE) && (categoria == 1 || categoria >= 11)) {
+                continue;  // Excluir el As (1) y figuras (J, Q, K)
+            }
+            // Crear la carta y añadirla a la baraja
+            vectCartas.push_back(Carta(categoria, palo));
+        }
+    }
+
+    /* for(auto it = vectCartas.begin() ; it != vectCartas.end() ; it++){
+        std::cout << *it << std::endl;
+    } */
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(vectCartas.begin(), vectCartas.end(), g);
+
+    for(auto it = vectCartas.begin(); it != vectCartas.end() ; it++){
+        baraja.push(*it);
+    }
+}
+
+void Partida::huir(){
+    if(huidasRestantes == 0){
+        throw usoInvalido("\n\nNo te quedan huidas restantes!\n\n");
+    }else{
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(sala.begin(), sala.end(), g);
+
+        //Devuelve la sala al fondo de la baraja sin un orden particular
+        for(auto it = sala.rend() ; it != sala.rbegin() ; it++){
+            baraja.push(*it);
+            sala.pop_back();
+        }
+
+        nuevaSala();
+        huidasRestantes--;
+    }
+}
+
+inline void Partida::addMensaje(std::string s){lastMessage = s;}
+
+    //USUARIO
+
+Usuario::Usuario(std::string nombre) : nomUsuario{nombre}, maxRonda{0}, partidasJugadas{0}, rondasJugadas{0} 
+{
+    //Crear fichero de usuario nuevo
+}
+
+Usuario::Usuario()
+{
+    //Cargar fichero de usuario a memoria
+}
+
 
 inline const std::string Usuario::nombre() const noexcept {return nomUsuario;}
 inline const int Usuario::ronda_maxima() const noexcept {return maxRonda;}
@@ -197,39 +306,52 @@ inline void Usuario::addRonda(int nRonda) noexcept
 }
 
 
+    //CARTA
+
 Carta::Carta(int cat = NULO, int palo = NULO) : carta{cat, palo} {}
 
 inline const int Carta::categCarta() const noexcept{return carta.first;}
 inline const int Carta::paloCarta() const noexcept{return carta.second;}
+const std::string Carta::verCarta() const noexcept{
+    std::string s;
+    std::string palo = nombresPalos[carta.first];
+
+    if(carta.first == 0 && carta.second == 0){
+        s = "Carta Nula";
+    }else{
+        if(carta.first < JOTA){
+            s = carta.first + " de " + palo;
+        }else{
+            std::string categ;
+
+            categ = nombresFiguras[carta.first - 11];
+            s = categ + " de " + palo;
+        }
+    }
+}
 
 std::ostream& operator<<(std::ostream& os, const Carta& c)
 {
-    std::string s;
+    std::string palo = nombresPalos[c.categCarta()];
+    const Carta nula;
+    if(c == nula){
+        os << "Carta Nula";
+    }else{
+        if(c.categCarta() < JOTA){
+            os << c.categCarta() << " de " << palo;
+        }else{
+            std::string categ;
 
-    switch(c.paloCarta()){
-        case PICA:
-            s = "Pica";
-        break;
-
-        case CORAZON:
-            s = "Corazón";
-        break;
-        
-        case DIAMANTE:
-            s = "Diamante";
-        break;
-
-        case TREBOL:
-            s = "Trébol";
-        break;
-
-        default:
-            os << "Carta Nula";
-            return os;
+            categ = nombresFiguras[c.categCarta() - 11];
+            os << categ << " de " << palo;
+        }
     }
 
-    os << c.categCarta() << " de " << s;
     return os;
+} 
+
+inline const bool operator==(const Carta& c1, const Carta& c2){
+    return c1.categCarta() == c2.categCarta() && c1.paloCarta() == c2.paloCarta();
 }
 
 
