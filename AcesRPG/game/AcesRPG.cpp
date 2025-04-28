@@ -94,7 +94,9 @@ inline void jump(int n){for(int i=0; i<n; i++) std::cout << std::endl;}
 
 int iniciarPartida(Partida game)
 {
-    bool flagValidCard = false;
+    bool flagValidCard, flagGuardado = false;
+    int opcionSeleccionada = 0;
+    char tecla;
 
     //game ya está inicializada
     if(game.rondaActual() == 0){
@@ -107,24 +109,83 @@ int iniciarPartida(Partida game)
         Sleep(3000);
     }
 
-    while(game.cartasRest() != 0)
+    while((game.cartasRest() != 0 && game.numMonstruos() != 0) || flagGuardado)
     {
-        system("cls");
-        std::cout << "Ronda " << game.rondaActual() << "\n\n";
         
-        flagValidCard = false;
-        while(!flagValidCard){
-            try{
+        
+        do{
+            system("cls");
+            std::cout << "Ronda " << game.rondaActual() << "\n\n";
 
-            }catch(const Partida::usoInvalido& e){
-                
+            if(!game.ultimoMsg().empty())   std::cout << game.ultimoMsg() << "\n\n";
+            
+            game.verSala();
+            std::cout << "\n";
+            mostrarSelectSala(opcionSeleccionada);
+
+            std::cout << "\n\nPulse G para guardar y salir.";
+
+            tecla = _getch();
+
+            if(tecla == 'G' || tecla == 'g'){
+                system("cls");
+                std::cout << "Guardando partida...";
+                //guardarPartida
+
+                flagGuardado = true;
+            }else if(tecla == 75){
+                if(opcionSeleccionada > 0) opcionSeleccionada--;
+            }else if(tecla == 77){
+                if(opcionSeleccionada < game.tamSala()) opcionSeleccionada++;
             }
 
+        }while(tecla != 13 || flagGuardado);
 
-        }
 
+        if(!flagGuardado){
+            flagValidCard = true;
+        
+            try{
+
+                game.usarCarta(opcionSeleccionada);
+                
+            }catch(const Partida::usoInvalido& e){
+                game.addMensaje(e.what());
+                flagValidCard = false;
+            }}
 
     }
+
+    if(!flagGuardado){
+        //winner
+    }
+}
+
+void winner(Partida game)
+{
+    
+std::cout << " ▄█     █▄     ▄████████         ▄█    █▄       ▄████████  ▄█    █▄     ▄████████         ▄████████       ▄█     █▄   ▄█  ███▄▄▄▄   ███▄▄▄▄      ▄████████    ▄████████"; 
+std::cout << "███     ███   ███    ███        ███    ███     ███    ███ ███    ███   ███    ███        ███    ███      ███     ███ ███  ███▀▀▀██▄ ███▀▀▀██▄   ███    ███   ███    ███"; 
+std::cout << "███     ███   ███    █▀         ███    ███     ███    ███ ███    ███   ███    █▀         ███    ███      ███     ███ ███▌ ███   ███ ███   ███   ███    █▀    ███    ███"; 
+std::cout << "███     ███  ▄███▄▄▄           ▄███▄▄▄▄███▄▄   ███    ███ ███    ███  ▄███▄▄▄            ███    ███      ███     ███ ███▌ ███   ███ ███   ███  ▄███▄▄▄      ▄███▄▄▄▄██▀"; 
+std::cout << "███     ███ ▀▀███▀▀▀          ▀▀███▀▀▀▀███▀  ▀███████████ ███    ███ ▀▀███▀▀▀          ▀███████████      ███     ███ ███▌ ███   ███ ███   ███ ▀▀███▀▀▀     ▀▀███▀▀▀▀▀  "; 
+std::cout << "███     ███   ███    █▄         ███    ███     ███    ███ ███    ███   ███    █▄         ███    ███      ███     ███ ███  ███   ███ ███   ███   ███    █▄  ▀███████████"; 
+std::cout << "███ ▄█▄ ███   ███    ███        ███    ███     ███    ███ ███    ███   ███    ███        ███    ███      ███ ▄█▄ ███ ███  ███   ███ ███   ███   ███    ███   ███    ███"; 
+std::cout << " ▀███▀███▀    ██████████        ███    █▀      ███    █▀   ▀██████▀    ██████████        ███    █▀        ▀███▀███▀  █▀    ▀█   █▀   ▀█   █▀    ██████████   ███    ███"; 
+std::cout << "                                                                                                                                                             ███    ███"; 
+
+game.winner();
+Sleep(3000);
+
+}
+
+void mostrarSelectSala(int opcionSeleccionada)
+{
+    //Si opcionSeleccionada == 0 -> 0 saltos
+
+    for(int i = 0; i<opcionSeleccionada; i++) std::cout << "    ";
+
+    std::cout << "^";
 }
 
 
@@ -143,7 +204,7 @@ inline const Carta Partida::armaActual() const noexcept{return arma;}
 inline const int Partida::saludActual() const noexcept{return salud;}
 const void Partida::verSala() noexcept{
     for(auto it = sala.begin(); it != sala.end(); it++){
-        std::cout << *it << " ";
+        std::cout << *it << "    ";
     }
 }
 inline const bool Partida::salaVacia() const noexcept{return sala.empty();}
@@ -151,6 +212,13 @@ inline const void Partida::verStats() noexcept{
     std::cout << "Salud: " << salud << "\nArma: " << arma;
 }
 inline const std::string Partida::ultimoMsg() const noexcept{return lastMessage;}
+inline const int Partida::tamSala() const noexcept{return sala.size();}
+inline const int Partida::numMonstruos() const noexcept {
+    return std::count_if(sala.begin(), sala.end(), [](const Carta& c) {
+        return c.paloCarta() == TREBOL || c.paloCarta() == PICA;
+    });
+}
+inline const void Partida::winner() noexcept{user.winner();}
 
 void Partida::nuevaSala()
 {
@@ -179,27 +247,28 @@ inline void Partida::descartarMonton(){
     arma = Carta();
 }
 
-void Partida::usarCarta(auto it){
+void Partida::usarCarta(int i){
     bool flagValid = true;
-    switch(*it.paloCarta()){
+    switch(sala[i].paloCarta()){
         case CORAZON:
             if(saludUsada){
                 throw usoInvalido("\n\nYa has usado una poción de salud!\n\n");
                 flagValid = false;
             }else{
-                addSalud(*it);
+                addSalud(sala[i]);
             }
         break;
 
         case DIAMANTE:
-            nuevaArma(*it);
+            nuevaArma(sala[i]);
         break;
     
         default: //Trébol o Pica
-            addMonstruo(*it);
+            addMonstruo(sala[i]);
     }
 
     if(flagValid){
+        auto it = std::find(sala.begin(), sala.end(), sala[i]);
         sala.erase(it);
         sala.shrink_to_fit();
 
@@ -211,7 +280,7 @@ inline void Partida::nuevaArma(Carta arma) noexcept{
     descartarMonton();
     Partida::arma = arma;
 
-    lastMessage = "Se ha añadido una nueva arma: " +
+    lastMessage = "Se ha añadido una nueva arma: " + arma.verCarta();
 }
 
 inline void Partida::addMonstruo(Carta monstruo){
@@ -304,6 +373,7 @@ inline void Usuario::addRonda(int nRonda) noexcept
     rondasJugadas++;
     if(nRonda > maxRonda) maxRonda = nRonda;
 }
+inline void Usuario::winner() noexcept{partidasGanadas++;}
 
 
     //CARTA
