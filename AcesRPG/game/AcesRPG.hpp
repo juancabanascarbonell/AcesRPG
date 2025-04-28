@@ -33,6 +33,7 @@ public:
     const int rondas_jugadas() const noexcept;
 
     void addRonda(int) noexcept;
+    void winner() noexcept;
 
     //Por ahora no hace falta constructores adicionales
 private:
@@ -71,11 +72,14 @@ public:
     const bool salaVacia() const noexcept;
     const void verStats() noexcept;
     const std::string ultimoMsg() const noexcept;
+    const int tamSala() const noexcept;
+    const int numMonstruos() const noexcept;
+    const void winner() noexcept;
 
 
     void nuevaSala();
     void descartarMonton();
-    void usarCarta(auto it);
+    void usarCarta(int i);
     void huir();
     void addMensaje(std::string);
 
