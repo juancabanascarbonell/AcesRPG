@@ -12,6 +12,16 @@
 #include <algorithm> //find, count...
 #include <utility> //pair
 #include <random> //shuffle
+#include <filesystem> //exists
+#include <fstream> //E/S ficheros
+
+#define RUTA_USER "../user/user.txt"
+
+struct CargarDesdeFichero_t {};
+struct CrearNuevoUsuario_t {};
+
+inline constexpr CargarDesdeFichero_t cargarDesdeFichero{};
+inline constexpr CrearNuevoUsuario_t crearNuevoUsuario{};
 
 enum OPCIONES {NUEVA_PARTIDA, CARGAR_PARTIDA, SALIR};
 enum PALOS {PICA, CORAZON, DIAMANTE, TREBOL};
@@ -23,8 +33,8 @@ const std::string nombresFiguras[] = {"Jota", "Reina", "Rey" , "As"};
 class Usuario
 {
 public:
-    Usuario(std::string nombre);
-    Usuario();
+    Usuario(CrearNuevoUsuario_t, const std::string& nombre);
+    Usuario(CargarDesdeFichero_t, const std::string& fichero);
 
     const std::string nombre() const noexcept;
     const int ronda_maxima() const noexcept;
@@ -35,10 +45,14 @@ public:
     void addRonda(int) noexcept;
     void winner() noexcept;
 
+    void guardarUsuario();
+
     //Por ahora no hace falta constructores adicionales
 private:
     std::string nomUsuario;
     int maxRonda, partidasJugadas, partidasGanadas, rondasJugadas;
+
+    std::string filename;
 };
 
 
@@ -50,6 +64,8 @@ public:
     const int paloCarta() const noexcept;
     const int categCarta() const noexcept;
     const std::string verCarta() const noexcept;
+
+    Carta& operator=(const Carta& c);
     
 private:
     std::pair<int, int> carta; //first: categoria. second: palo
@@ -83,6 +99,9 @@ public:
     void huir();
     void addMensaje(std::string);
 
+    void guardarPartida();
+
+
     class usoInvalido : public std::exception {
         private:
             std::string mensaje;  // Almacena el mensaje de error
@@ -99,7 +118,7 @@ public:
 
 private:
     Usuario user;
-    int salud, ronda, cartasRestantes, huidasRestantes;
+    int ronda, salud, cartasRestantes, monstruosRestantes, huidasRestantes;
     bool saludUsada;
     Carta arma;
 
@@ -114,6 +133,8 @@ private:
     void addSalud(Carta salud) noexcept;
 
     void inicializarBaraja() noexcept;
+
+    std::string filename;
 };
 
 
@@ -135,6 +156,14 @@ void titulo();
 //FUNCIONES DE E/S
 
 void jump(int n);
+
+//CARGA PARTIDA
+
+Partida& menuCargaPartida();
+
+//PARTIDA
+
+void iniciarPartida(Partida game);
 
 
 #endif // _ACESRPG_HPP_
