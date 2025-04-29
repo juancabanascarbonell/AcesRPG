@@ -67,6 +67,7 @@ public:
 
     Carta& operator=(const Carta& c);
     
+    
 private:
     std::pair<int, int> carta; //first: categoria. second: palo
 };
@@ -131,6 +132,7 @@ private:
     void nuevaArma(Carta arma) noexcept;
     void addMonstruo(Carta monstruo);
     void addSalud(Carta salud) noexcept;
+    int attack(Carta monstruo) noexcept;
 
     void inicializarBaraja() noexcept;
 

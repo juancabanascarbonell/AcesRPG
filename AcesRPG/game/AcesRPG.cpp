@@ -410,24 +410,42 @@ inline void Partida::nuevaArma(Carta arma) noexcept{
     descartarMonton();
     Partida::arma = arma;
 
-    lastMessage = "Se ha añadido una nueva arma: " + arma.verCarta();
+    addMensaje("Se ha añadido una nueva arma: " + arma.verCarta());
 }
 
 inline void Partida::addMonstruo(Carta monstruo){
-    
-    //El siguiente monstruo a combatir ha de ser menor que el tope del montón
-    if(monton.top().categCarta() > monstruo.categCarta()){
+    int resAttack;
+    if(arma == monton.top() || monstruo < monton.top()){
         monton.push(monstruo);
-    }else{ //Si el monstruo es menor o igual, se descarta y se recibe todo el daño
-        salud -= monstruo.categCarta();
+        resAttack = attack();
+    }else{
+        resAttack = monstruo.categCarta();
     }
+
+    salud -= resAttack;
+    
+    addMensaje("Has sufrido " + resAttack + " de daño al luchar contra " 
+    + monstruo.verCarta());
 
     monstruosRestantes--;
 }
 
 inline void Partida::addSalud(Carta salud) noexcept{
+    int saludIni = Partida::salud;
+
     Partida::salud += salud.categCarta();
     if(Partida::salud > 20) Partida::salud = 20;
+
+    addMensaje("Has restaurado " + (saludIni - Partida::salud) + 
+    " de salud al beber una pocion de " + salud.categCarta() + " HP");
+}
+
+inline int attack(Carta monstruo) noexcept{
+    if(monstruo > arma){
+        return monstruo.categCarta() - arma.categCarta();
+    }else{
+        return 0;
+    }
 }
 
 void Partida::inicializarBaraja() noexcept{
@@ -648,6 +666,10 @@ inline Carta& Carta::operator=(const Carta& c)
         carta = std::pair<int,int>(c.categCarta(), c.paloCarta());
     }
 }
+
+inline const bool operator<(const Carta& c1, const Carta& c2){return c1.categCarta() < c2.categCarta()}
+inline const bool operator>(const Carta& c1, const Carta& c2){return !(c1<c2) && !(c1 == c2);}
+
 
 
 
