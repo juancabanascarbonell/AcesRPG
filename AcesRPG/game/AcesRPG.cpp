@@ -2,9 +2,36 @@
 
 int main()
 {
+    
+
     mainMenu();
     std::cin.get();
     return 0;
+}
+
+Usuario& userLoad()
+{
+    namespace fs = std::filesystem;
+    if(fs::exists(RUTA_USER)){
+        Usuario user(cargarDesdeFichero, RUTA_USER);
+        std::cout << "Cargando usuario..." << user.nombre();
+        Sleep(1000);
+        return user;
+    }else{
+        std::cout << "Eres un nuevo aventurero? Cual es tu nombre?\n\n...";
+        std::string nombre;
+        std::cin >> nombre;
+
+        system("cls");
+        std::cout << "Comienza tu aventura...\n\n\n";
+        Sleep(1500);
+        std::cout << nombre;
+
+        Usuario user(crearNuevoUsuario, nombre);
+        return user;
+    }
+
+    
 }
 
 void mostrarMenu(int opcionSeleccionada)
@@ -92,7 +119,55 @@ void titulo()
 
 inline void jump(int n){for(int i=0; i<n; i++) std::cout << std::endl;}
 
-int iniciarPartida(Partida game)
+Partida& menuCargaPartida(Usuario user)
+{
+    namespace fs = std::filesystem;
+
+    std::string ruta = "../user/saves"; 
+    std::vector<fs::directory_entry> archivos;
+
+    std::cout << "Partidas guardadas:\n\n";
+
+    int index = 1;
+    for (const auto& entry : fs::directory_iterator(ruta)) {
+        if (entry.is_regular_file()) {
+            archivos.push_back(entry);
+
+            auto ftime = entry.last_write_time();
+            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now()
+            );
+            std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
+
+            std::cout << index++ << ". "
+                      << entry.path().filename() << " - "
+                      << std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S")
+                      << "\n";
+        }
+    }
+
+    if (archivos.empty()) {
+        std::cout << "No hay partidas guardadas\n";
+        Sleep(1000);
+        return Partida(user);
+    }
+
+    std::cout << "\nIntroduce el número de partida: ";
+    int seleccion;
+    std::cin >> seleccion;
+
+    if (seleccion < 1 || seleccion > static_cast<int>(archivos.size())) {
+        std::cerr << "Selección no válida.\n";
+        return 1;
+    }
+
+    fs::path archivoSeleccionado = archivos[seleccion - 1].path();
+    std::cout << "\nHas seleccionado el archivo: " << archivoSeleccionado.filename() << "\n";
+
+    return 0;
+}
+
+void iniciarPartida(Partida game)
 {
     bool flagValidCard, flagGuardado = false;
     int opcionSeleccionada = 0;
@@ -191,9 +266,64 @@ void mostrarSelectSala(int opcionSeleccionada)
 
     //PARTIDA
 
-Partida::Partida(Usuario user, std::string filename = "game1.txt") : user{user}
+Partida::Partida(Usuario user, std::string filename = "game1.txt") : user{user} , filename{filename}
 {
-    //volcar fichero en memoria
+    std::ifstream fp(filename);
+    std::string temp, tempCarta1, tempCarta2;
+
+    std::getline(fp, temp, '-');
+    ronda = std::stoi(temp);                //ronda
+    std::getline(fp, temp, '-');
+    salud = std::stoi(temp);                //salud
+    std::getline(fp, temp, '-');
+    cartasRestantes = std::stoi(temp);      //cartasRestantes
+    std::getline(fp, temp, '-');
+    monstruosRestantes = std::stoi(temp);   //monstruosRestantes
+    std::getline(fp, temp, '-');
+    huidasRestantes = std::stoi(temp);      //huidasRestantes
+    std::getline(fp, temp);
+    saludUsada = std::stoi(temp);           //saludUsada(bool)
+
+    std::getline(fp, lastMessage);          //lastMessage
+
+    int i = 0;
+    size_t pos;
+
+    std::getline(fp, temp);
+    if(temp != "-"){
+        tempCarta1 = temp.substr(0, pos);
+        tempCarta2 = temp.substr(pos);
+        arma = Carta(std::stoi(tempCarta1), std::stoi(tempCarta2));
+    }
+
+    std::getline(fp, temp);
+
+    while(temp != "---"){
+        pos = temp.find('_');
+        tempCarta1 = temp.substr(0, pos);
+        tempCarta2 = temp.substr(pos);
+        sala[i] = Carta(std::stoi(tempCarta1), std::stoi(tempCarta2));
+
+        std::getline(fp, temp);
+    }
+
+    std::getline(fp, temp);
+    while(temp != "---"){
+        pos = temp.find('_');
+        tempCarta1 = temp.substr(0, pos);
+        tempCarta2 = temp.substr(pos);
+        monton.push(Carta(std::stoi(tempCarta1), std::stoi(tempCarta2)));
+    }
+
+    std::getline(fp, temp);
+    while(temp != "---"){
+        pos = temp.find('_');
+        tempCarta1 = temp.substr(0, pos);
+        tempCarta2 = temp.substr(pos);
+        baraja.push(Carta(std::stoi(tempCarta1), std::stoi(tempCarta2)));
+    }
+
+    fp.close();
 }
 
 inline const int Partida::rondaActual() const noexcept{return ronda;}
@@ -291,6 +421,8 @@ inline void Partida::addMonstruo(Carta monstruo){
     }else{ //Si el monstruo es menor o igual, se descarta y se recibe todo el daño
         salud -= monstruo.categCarta();
     }
+
+    monstruosRestantes--;
 }
 
 inline void Partida::addSalud(Carta salud) noexcept{
@@ -349,16 +481,89 @@ void Partida::huir(){
 
 inline void Partida::addMensaje(std::string s){lastMessage = s;}
 
-    //USUARIO
-
-Usuario::Usuario(std::string nombre) : nomUsuario{nombre}, maxRonda{0}, partidasJugadas{0}, rondasJugadas{0} 
+void Partida::guardarPartida()
 {
-    //Crear fichero de usuario nuevo
+    namespace fs = std::filesystem;
+
+    fs::remove(filename);
+
+    std::ofstream fp(filename);
+    if(!fp) throw std::runtime_error("Error: No se ha podido sobreescribir el archivo de guardado");
+
+    fp << ronda << '-' << salud << '-' << cartasRestantes << '-' << monstruosRestantes
+    << '-' << huidasRestantes << '-' << salud << '\n';
+    
+    if(!(arma == Carta())){
+        guardarCarta(fp, arma);
+    }
+
+    for(auto it = sala.cbegin() ; it != sala.cend() ; it++){
+        guardarCarta(fp, *it);
+    }
+
+    fp << "---\n";
+    std::vector<Carta> tempCartas;
+
+    while(!monton.empty()){
+        tempCartas.push_back(monton.top());
+        monton.pop();
+    }
+
+    for(auto it = tempCartas.begin() ; it != tempCartas.end() ; it++){
+        guardarCarta(fp, *it);
+    }
+    fp << "---\n";
+
+    while(!baraja.empty()){
+        guardarCarta(fp, baraja.front());
+        baraja.pop();
+    }
+    
+    fp << "---\n";
+
+    fp.clsoe();
+
 }
 
-Usuario::Usuario()
+void guardarCarta(std::ofstream& fp, const Carta& c)
 {
-    //Cargar fichero de usuario a memoria
+    fp << c.categCarta() << '_' << c.paloCarta();
+}
+
+    //USUARIO
+
+Usuario::Usuario(CrearNuevoUsuario_t, const std::string& nombre) : nomUsuario{nombre}
+{
+    std::ofstream fp(RUTA_USER);
+    if(!fp){
+        throw std::runtime_error("Error: No se ha podido crear el fichero");
+    }
+
+    fp << nombre << "-" << 0 << "-" << 0 << "-" << 0 << "-" << 0;
+
+    fp.close();
+}
+
+Usuario::Usuario(CargarDesdeFichero_t, const std::string& fichero)
+{
+    std::ifstream fp(fichero);
+    if(!fp){
+        throw std::runtime_error("Error: No se ha podido abrir el fichero");
+    }
+    std::string temp; //string temporal para la conversión de numeros
+
+    std::getline(fp, nomUsuario, '-'); //Nombre
+
+    std::getline(fp, temp, '-');
+    partidasJugadas = std::stoi(temp); //partidasJugadas
+    std::getline(fp, temp, '-');
+    partidasGanadas = std::stoi(temp); //partidasGanadas
+    std::getline(fp, temp, '-');
+    rondasJugadas = std::stoi(temp); //rondasJugadas
+    std::getline(fp, temp);
+    maxRonda = std::stoi(temp); //maxRonda
+
+    fp.close();
 }
 
 
@@ -374,6 +579,19 @@ inline void Usuario::addRonda(int nRonda) noexcept
     if(nRonda > maxRonda) maxRonda = nRonda;
 }
 inline void Usuario::winner() noexcept{partidasGanadas++;}
+
+void Usuario::guardarUsuario()
+{
+    namespace fs = std::filesystem;
+
+    fs::remove(filename);
+
+    std::ofstream fp(filename);
+
+    fp << nomUsuario << '-' << maxRonda << '-' << partidasJugadas << '-' << partidasGanadas << '-' << rondasJugadas;
+
+    fp.close();
+}
 
 
     //CARTA
@@ -422,6 +640,13 @@ std::ostream& operator<<(std::ostream& os, const Carta& c)
 
 inline const bool operator==(const Carta& c1, const Carta& c2){
     return c1.categCarta() == c2.categCarta() && c1.paloCarta() == c2.paloCarta();
+}
+
+inline Carta& Carta::operator=(const Carta& c)
+{
+    if(this != &c){
+        carta = std::pair<int,int>(c.categCarta(), c.paloCarta());
+    }
 }
 
 
